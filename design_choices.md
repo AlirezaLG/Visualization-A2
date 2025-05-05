@@ -19,3 +19,5 @@ juxtapose
 
 ### Interaction design
 [describe which interactions are possible in terms of manipulating, faceting, and reducing the data and how they are triggered]
+For the task1, we have applied the aggregate interaction technique.
+For the task2, we have applied the superimposed interaction technique.

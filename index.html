@@ -18,6 +18,18 @@
             border-radius: 4px;
             box-shadow: 0px 0px 6px rgba(0, 0, 0, 0.2);
           }
+          #legend ul{list-style: none;margin:0px}
+          #legend ul.list li{display: inline;padding:0 0 0 5px;}
+          .legend-triangle {
+            width: 0;
+            height: 0;
+            border-left: calc(var(--t-width) / 2) solid transparent;
+            border-right: calc(var(--t-width) / 2) solid transparent;
+            border-bottom: var(--t-height) solid black;
+            display: inline-block;
+            
+          }
+          .bold{font-weight: bold;margin-bottom: 5px;}
     </style>
 </head>
 
@@ -114,7 +126,40 @@
     <br>
     <hr>
     <br>
-    <svg id="scatter" width="800" height="600" ></svg>
+    <div>
+        <svg id="scatter" width="700" height="600" style="float:left" ></svg>
+        <div id="legend" style="width:100%; margin:auto; font-family:sans-serif; font-size:14px;">
+            <h3>Encoding Guide </h3>
+            <p class="bold">Species</p>
+            <ul class="list" style="list-style: none; padding-left: 0">
+              <li><span style="display:inline-block;width:12px;height:12px;background:#1f77b4;"></span> Adelie</li>
+              <li><span style="display:inline-block;width:12px;height:12px;background:#2ca02c;"></span> Chinstrap</li>
+              <li><span style="display:inline-block;width:12px;height:12px;background:#ff7f0e;"></span> Gentoo</li>
+            </ul>
+
+            <p class="bold">Body Mass size</p>
+            <ul class="list">
+              <li><div class="legend-triangle" style="--t-width: 12px; --t-height: 12px;"></div>
+                 size 1</li>
+              <li><div class="legend-triangle" style="--t-width: 12px; --t-height: 16px;"></div>
+                 size 1</li>
+                <li><div class="legend-triangle" style="--t-width: 12px; --t-height: 20px;"></div>
+                    size 1</li>
+            </ul>
+
+            <p class="bold">Flipper length size</p>
+            <ul class="list">
+              <li><div class="legend-triangle" style="--t-width: 12px; --t-height: 12px;"></div>
+                 size 1</li>
+              <li><div class="legend-triangle" style="--t-width: 16px; --t-height: 12px;"></div>
+                 size 1</li>
+                <li><div class="legend-triangle" style="--t-width: 20px; --t-height: 12px;"></div>
+                    size 1</li>
+            </ul>
+        </div>
+        <div style="clear: both;"></div>
+    </div>
+    
     <section>
         <zero-md src="design_choices.md">
             <template>

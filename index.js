@@ -116,7 +116,7 @@ function drawScatter(data) {
 
   const filtered = data.filter((d) =>
     d3.every(
-      [d.bill_length_mm, d.bill_depth_mm, d.species],
+      [d.bill_length_mm, d.bill_depth_mm, d.body_mass_g, d.flipper_length_mm],
       (v) => v !== null && v !== "NA"
     )
   );
@@ -138,6 +138,21 @@ function drawScatter(data) {
     .domain(["Adelie", "Chinstrap", "Gentoo"])
     .range(["#1f77b4", "#2ca02c", "#ff7f0e"]);
 
+  const widthScale = d3
+    .scaleLinear()
+    .domain(d3.extent(filtered, (d) => d.body_mass_g))
+    .range([6, 20]); // triangle base width
+
+  const heightScale = d3
+    .scaleLinear()
+    .domain(d3.extent(filtered, (d) => d.flipper_length_mm))
+    .range([10, 30]); // triangle height
+
+  function trianglePath(width, height) {
+    const w = width / 2;
+    return `M 0 ${-height / 2} L ${w} ${height / 2} L ${-w} ${height / 2} Z`;
+  }
+
   g.append("g")
     .attr("transform", `translate(0, ${innerHeight})`)
     .call(d3.axisBottom(x));
@@ -157,24 +172,28 @@ function drawScatter(data) {
     .attr("text-anchor", "middle")
     .text("Bill Depth (mm)");
 
-  // change the mark/symbol to triangle
-  const symbol = d3.symbol().type(d3.symbolTriangle).size(80); // adjust size as needed
   g.selectAll("path")
     .data(filtered)
     .enter()
     .append("path")
-    .attr("d", symbol)
+    .attr("d", (d) =>
+      trianglePath(widthScale(d.body_mass_g), heightScale(d.flipper_length_mm))
+    )
     .attr(
       "transform",
       (d) => `translate(${x(d.bill_length_mm)}, ${y(d.bill_depth_mm)})`
     )
     .attr("fill", (d) => color(d.species))
-
+    .attr("stroke", "black")
+    .attr("stroke-width", 1)
     .on("mouseover", (event, d) => {
       tooltip.transition().duration(200).style("opacity", 0.9);
       tooltip
         .html(
-          `Species: ${d.species}<br>Bill: ${d.bill_length_mm} × ${d.bill_depth_mm}`
+          `Species: ${d.species}<br>` +
+            `Bill: ${d.bill_length_mm} × ${d.bill_depth_mm}<br>` +
+            `Flipper: ${d.flipper_length_mm} mm<br>` +
+            `Body Mass: ${d.body_mass_g} g`
         )
         .style("left", event.pageX + 10 + "px")
         .style("top", event.pageY - 28 + "px");
