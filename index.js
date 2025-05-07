@@ -59,8 +59,9 @@ function drawHeatmap(data) {
     .range([0, innerHeight])
     .padding(0.05);
   const colorScale = d3
-    .scaleSequential(d3.interpolateBlues)
-    .domain([0, d3.max(heatmapData, (d) => d.count)]);
+    .scaleQuantize()
+    .domain([0, d3.max(heatmapData, (d) => d.count)])
+    .range(d3.schemeBlues[6]);
 
   g.append("g")
     .attr("transform", `translate(0, ${innerHeight})`)
@@ -204,18 +205,17 @@ function drawScatter(data) {
 }
 // #endregion
 
-// scatter plot matrix
+// #region Scatter plot matrix
 function drawScatterMatrix(data) {
-  const svg = d3.select("#scatter-matrix")
-    .style("cursor","default");
+  const svg = d3.select("#scatter-matrix").style("cursor", "default");
   // clear previous
   svg.selectAll("*").remove();
   svg.on("dblclick", null);
 
   const width = +svg.attr("width"),
-        height = +svg.attr("height"),
-        innerW = width - margin.left - margin.right,
-        innerH = height - margin.top - margin.bottom;
+    height = +svg.attr("height"),
+    innerW = width - margin.left - margin.right,
+    innerH = height - margin.top - margin.bottom;
 
   const vars = [
     "bill_length_mm",
@@ -228,201 +228,255 @@ function drawScatterMatrix(data) {
   const padding = 10;
 
   // ── Encodings ────────────────────────────────────
-  const color = d3.scaleOrdinal()
-    .domain(["Adelie","Chinstrap","Gentoo"])
-    .range(["#1f77b4","#2ca02c","#ff7f0e"]);
-  const tiltMap = { Dream:0, Biscoe:45, Torgersen:-45 };
+  const color = d3
+    .scaleOrdinal()
+    .domain(["Adelie", "Chinstrap", "Gentoo"])
+    .range(["#1f77b4", "#2ca02c", "#ff7f0e"]);
+  const tiltMap = { Dream: 0, Biscoe: 45, Torgersen: -45 };
   const triPath = () => {
-    const w=8,h=8;
-    return `M0 ${-h/2} L${w/2} ${h/2} L${-w/2} ${h/2} Z`;
+    const w = 8,
+      h = 8;
+    return `M0 ${-h / 2} L${w / 2} ${h / 2} L${-w / 2} ${h / 2} Z`;
   };
-  function islandAngle(i){ return tiltMap[i]||0; }
+  function islandAngle(i) {
+    return tiltMap[i] || 0;
+  }
 
   // precompute scales for each variable
-  const xScales={}, yScales={};
-  vars.forEach(v => {
-    const ext = d3.extent(data, d=>d[v]);
-    xScales[v] = d3.scaleLinear().domain(ext).range([padding, cellSize-padding]).nice();
-    yScales[v] = d3.scaleLinear().domain(ext).range([cellSize-padding, padding]).nice();
+  const xScales = {},
+    yScales = {};
+  vars.forEach((v) => {
+    const ext = d3.extent(data, (d) => d[v]);
+    xScales[v] = d3
+      .scaleLinear()
+      .domain(ext)
+      .range([padding, cellSize - padding])
+      .nice();
+    yScales[v] = d3
+      .scaleLinear()
+      .domain(ext)
+      .range([cellSize - padding, padding])
+      .nice();
   });
 
   // ── REDUCING: species legend ───────────────────────────
   const speciesList = color.domain();
   let activeSpecies = new Set(speciesList);
 
-  const legend = svg.append("g")
-    .attr("transform", `translate(${margin.left}, ${margin.top/2})`);
+  const legend = svg
+    .append("g")
+    .attr("transform", `translate(${margin.left}, ${margin.top / 2})`);
 
-  legend.selectAll("g")
+  legend
+    .selectAll("g")
     .data(speciesList)
-    .enter().append("g")
-      .attr("class","legend-item")
-      .attr("transform", (d,i) => `translate(${i*120},0)`)
-      .style("cursor","pointer")
-      .on("click", (e,s) => {
-        if(activeSpecies.has(s)) activeSpecies.delete(s);
-        else                     activeSpecies.add(s);
-        d3.select(e.currentTarget).select("rect")
-          .transition().duration(300)
-          .attr("stroke-width", activeSpecies.has(s)?0:2);
-        updateFilter();
-      })
-    .call(g => {
+    .enter()
+    .append("g")
+    .attr("class", "legend-item")
+    .attr("transform", (d, i) => `translate(${i * 120},0)`)
+    .style("cursor", "pointer")
+    .on("click", (e, s) => {
+      if (activeSpecies.has(s)) activeSpecies.delete(s);
+      else activeSpecies.add(s);
+      d3.select(e.currentTarget)
+        .select("rect")
+        .transition()
+        .duration(300)
+        .attr("stroke-width", activeSpecies.has(s) ? 0 : 2);
+      updateFilter();
+    })
+    .call((g) => {
       g.append("rect")
-        .attr("width",12).attr("height",12)
-        .attr("fill", d=>color(d))
-        .attr("stroke","black")
-        .attr("stroke-width",0);
+        .attr("width", 12)
+        .attr("height", 12)
+        .attr("fill", (d) => color(d))
+        .attr("stroke", "black")
+        .attr("stroke-width", 0);
       g.append("text")
-        .attr("x",16).attr("y",10)
-        .text(d=>d);
+        .attr("x", 16)
+        .attr("y", 10)
+        .text((d) => d);
     });
 
   function updateFilter() {
-    cellGroup.selectAll("path.point")
-      .transition().duration(300)
-      .attr("opacity", d => activeSpecies.has(d.species)?1:0.1);
+    cellGroup
+      .selectAll("path.point")
+      .transition()
+      .duration(300)
+      .attr("opacity", (d) => (activeSpecies.has(d.species) ? 1 : 0.1));
   }
 
   // ── matrix container ───────────────────────────────────
-  const cellGroup = svg.append("g")
+  const cellGroup = svg
+    .append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`);
 
   // draw each cell
-  for(let row=0; row<n; row++){
-    for(let col=0; col<n; col++){
-      const xVar = vars[col], yVar = vars[row];
-      const cell = cellGroup.append("g")
-        .attr("transform", `translate(${col*cellSize},${row*cellSize})`);
+  for (let row = 0; row < n; row++) {
+    for (let col = 0; col < n; col++) {
+      const xVar = vars[col],
+        yVar = vars[row];
+      const cell = cellGroup
+        .append("g")
+        .attr("transform", `translate(${col * cellSize},${row * cellSize})`);
 
       // frame
-      cell.append("rect")
-        .attr("width",cellSize)
-        .attr("height",cellSize)
-        .attr("fill","none")
-        .attr("stroke","#ccc");
+      cell
+        .append("rect")
+        .attr("width", cellSize)
+        .attr("height", cellSize)
+        .attr("fill", "none")
+        .attr("stroke", "#ccc");
 
       // points
-      cell.selectAll("path")
+      cell
+        .selectAll("path")
         .data(data)
-        .enter().append("path")
-          .attr("class","point")
-          .attr("d",triPath)
-          
-          // store local coords for brushing
-          .attr("data-x", d => xScales[xVar](d[xVar]) + col*cellSize)
-          .attr("data-y", d => yScales[yVar](d[yVar]) + row*cellSize)
-          .attr("transform", d => {
-            const x = xScales[xVar](d[xVar]),
-                  y = yScales[yVar](d[yVar]),
-                  flip = d.sex==="Female"?180:0;
-            return `translate(${x},${y}) rotate(${flip}) rotate(${islandAngle(d.island)})`;
-          })
-          .attr("fill", d=>color(d.species))
-          .attr("stroke","black")
-          .attr("stroke-width",0.5)
-          .attr("opacity",1);
+        .enter()
+        .append("path")
+        .attr("class", "point")
+        .attr("d", triPath)
+
+        // store local coords for brushing
+        .attr("data-x", (d) => xScales[xVar](d[xVar]) + col * cellSize)
+        .attr("data-y", (d) => yScales[yVar](d[yVar]) + row * cellSize)
+        .attr("transform", (d) => {
+          const x = xScales[xVar](d[xVar]),
+            y = yScales[yVar](d[yVar]),
+            flip = d.sex === "Female" ? 180 : 0;
+          return `translate(${x},${y}) rotate(${flip}) rotate(${islandAngle(
+            d.island
+          )})`;
+        })
+        .attr("fill", (d) => color(d.species))
+        .attr("stroke", "black")
+        .attr("stroke-width", 0.5)
+        .attr("opacity", 1);
     }
   }
 
   // ── Axis labels & FACETING hint ───────────────────────────
-  vars.forEach((v,i) => {
+  vars.forEach((v, i) => {
     // x-label
-    cellGroup.append("text")
-      .attr("x", i*cellSize + cellSize/2)
-      .attr("y", n*cellSize + 15)
-      .attr("text-anchor","middle")
-      .text(v.replace(/_/g," "));
+    cellGroup
+      .append("text")
+      .attr("x", i * cellSize + cellSize / 2)
+      .attr("y", n * cellSize + 15)
+      .attr("text-anchor", "middle")
+      .text(v.replace(/_/g, " "));
     // y-label
-    cellGroup.append("text")
-      .attr("transform", `translate(-15,${i*cellSize+cellSize/2}) rotate(-90)`)
-      .attr("text-anchor","middle")
-      .text(v.replace(/_/g," "));
+    cellGroup
+      .append("text")
+      .attr(
+        "transform",
+        `translate(-15,${i * cellSize + cellSize / 2}) rotate(-90)`
+      )
+      .attr("text-anchor", "middle")
+      .text(v.replace(/_/g, " "));
   });
 
   // ── MANIPULATION: brushing ─────────────────────────────────
-  const brush = d3.brush()
-    .extent([[0,0],[n*cellSize,n*cellSize]])
+  const brush = d3
+    .brush()
+    .extent([
+      [0, 0],
+      [n * cellSize, n * cellSize],
+    ])
     .on("start brush end", brushed);
 
-  cellGroup.append("g").attr("class","brush").call(brush);
+  cellGroup.append("g").attr("class", "brush").call(brush);
 
-  function brushed({selection}) {
-    if(!selection) {
-      cellGroup.selectAll("path.point")
-        .transition().duration(200)
-        .attr("stroke-width",0.5)
-        .attr("opacity", d=>activeSpecies.has(d.species)?1:0.1);
+  function brushed({ selection }) {
+    if (!selection) {
+      cellGroup
+        .selectAll("path.point")
+        .transition()
+        .duration(200)
+        .attr("stroke-width", 0.5)
+        .attr("opacity", (d) => (activeSpecies.has(d.species) ? 1 : 0.1));
       return;
     }
-    const [[x0,y0],[x1,y1]] = selection;
-    cellGroup.selectAll("path.point").each(function(d) {
+    const [[x0, y0], [x1, y1]] = selection;
+    cellGroup.selectAll("path.point").each(function (d) {
       const px = +this.getAttribute("data-x"),
-            py = +this.getAttribute("data-y"),
-            inside = x0<=px&&px<=x1&&y0<=py&&py<=y1;
+        py = +this.getAttribute("data-y"),
+        inside = x0 <= px && px <= x1 && y0 <= py && py <= y1;
       d3.select(this)
-        .transition().duration(200)
-        .attr("stroke-width", inside?2:0.5)
-        .attr("opacity", inside?1:0.1);
+        .transition()
+        .duration(200)
+        .attr("stroke-width", inside ? 2 : 0.5)
+        .attr("opacity", inside ? 1 : 0.1);
     });
   }
 
   // ── FACETING: double-click to split by species ─────────────
   let faceted = false;
   svg.on("dblclick", () => {
-    if(!faceted) {
+    if (!faceted) {
       // fade out overview
-      svg.selectAll("*")
-        .transition().duration(500)
-        .style("opacity",0)
+      svg
+        .selectAll("*")
+        .transition()
+        .duration(500)
+        .style("opacity", 0)
         .remove();
 
       // draw one matrix per species
-      speciesList.forEach((sp,i) => {
-        const subset = data.filter(d=>d.species===sp);
-        const originX = margin.left + i*(innerW/speciesList.length + margin.right);
-        const gSp = svg.append("g")
+      speciesList.forEach((sp, i) => {
+        const subset = data.filter((d) => d.species === sp);
+        const originX =
+          margin.left + i * (innerW / speciesList.length + margin.right);
+        const gSp = svg
+          .append("g")
           .attr("transform", `translate(${originX},${margin.top})`)
-          .style("opacity",0);
+          .style("opacity", 0);
 
         // small-multiple matrix
-        for(let r=0; r<n; r++){
-          for(let c=0; c<n; c++){
-            const xVar2 = vars[c], yVar2 = vars[r];
-            const cell2 = gSp.append("g")
-              .attr("transform", `translate(${c*cellSize},${r*cellSize})`);
+        for (let r = 0; r < n; r++) {
+          for (let c = 0; c < n; c++) {
+            const xVar2 = vars[c],
+              yVar2 = vars[r];
+            const cell2 = gSp
+              .append("g")
+              .attr("transform", `translate(${c * cellSize},${r * cellSize})`);
 
-            cell2.append("rect")
-              .attr("width",cellSize)
-              .attr("height",cellSize)
-              .attr("fill","none")
-              .attr("stroke","#ccc");
+            cell2
+              .append("rect")
+              .attr("width", cellSize)
+              .attr("height", cellSize)
+              .attr("fill", "none")
+              .attr("stroke", "#ccc");
 
-            cell2.selectAll("path")
+            cell2
+              .selectAll("path")
               .data(subset)
-              .enter().append("path")
-                .attr("d",triPath)
-                .attr("transform", d => {
-                  const xx = xScales[xVar2](d[xVar2]),
-                        yy = yScales[yVar2](d[yVar2]),
-                        flip = d.sex==="Female"?180:0;
-                  return `translate(${xx},${yy}) rotate(${flip}) rotate(${islandAngle(d.island)})`;
-                })
-                .attr("fill",color(sp))
-                .attr("stroke","black")
-                .attr("stroke-width",0.5)
-                .attr("opacity",1);
+              .enter()
+              .append("path")
+              .attr("d", triPath)
+              .attr("transform", (d) => {
+                const xx = xScales[xVar2](d[xVar2]),
+                  yy = yScales[yVar2](d[yVar2]),
+                  flip = d.sex === "Female" ? 180 : 0;
+                return `translate(${xx},${yy}) rotate(${flip}) rotate(${islandAngle(
+                  d.island
+                )})`;
+              })
+              .attr("fill", color(sp))
+              .attr("stroke", "black")
+              .attr("stroke-width", 0.5)
+              .attr("opacity", 1);
           }
         }
 
         // species title
-        gSp.append("text")
-          .attr("x", (n*cellSize)/2)
-          .attr("y",-6)
-          .attr("text-anchor","middle")
+        gSp
+          .append("text")
+          .attr("x", (n * cellSize) / 2)
+          .attr("y", -6)
+          .attr("text-anchor", "middle")
           .text(sp);
 
-        gSp.transition().duration(500).style("opacity",1);
+        gSp.transition().duration(500).style("opacity", 1);
       });
 
       faceted = true;
@@ -433,10 +487,7 @@ function drawScatterMatrix(data) {
     }
   });
 }
-
-
-
-
+// #endregion Scatter plot matrix
 
 // Draw both plots
 drawHeatmap(penguins);
